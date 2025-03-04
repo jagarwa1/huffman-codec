@@ -31,7 +31,7 @@ int isQueueFull(Queue *q) {
   return q->size == q->capacity;
 }
 
-// is the node a leaf node, i.e. does the node contain the symbol 
+// is the node a leaf node, i.e. does the node contain the symbol
 int isLeafNode (Node *node) {
   return (node->left == NULL && node->right == NULL);
 }
@@ -39,7 +39,7 @@ int isLeafNode (Node *node) {
 // create new node
 Node* newNode(char data, unsigned int freq) {
   Node* new = malloc(sizeof(Node));
-  
+
   new->data = data;
   new->freq = freq;
   new->left = NULL;
@@ -87,6 +87,8 @@ Queue createQueue(char data[], unsigned int freq[], int size) {
     arr[i] = malloc(sizeof(Node));
     arr[i]->data = data[i];
     arr[i]->freq = freq[i];
+    arr[i]->left = NULL;
+    arr[i]->right = NULL;
   }
 
   q.size = size;
@@ -102,25 +104,25 @@ Queue createQueue(char data[], unsigned int freq[], int size) {
 void fix_size(Tree *T)
 {
   T->size = 1;
-  if (T->root->left) 
+  if (T->root->left)
     T->size++;
-  if (T->root->right) 
+  if (T->root->right)
     T->size++;
 }
 
 // insert key k into tree T, returning a pointer to the resulting root
 Node *insert(Node *T, char data, unsigned int freq) {
   if (T == NULL) return newNode(data, freq);
-  if (freq < T->freq) 
+  if (freq < T->freq)
     T->left = insert(T->left, data, freq);
-  else 
+  else
     T->right = insert(T->right, data, freq);
   return T;
 }
 
 // join trees L and R (with L containing keys all <= the keys in R)
 // args: two pointers to Nodes of subtrees
-// returns: a pointer to the joined tree.  
+// returns: a pointer to the joined tree.
 Node *join(Node *L, Node *R)
 {
   // |L|/(|L|+|R|) & |R|/(|L|+|R|)
@@ -140,7 +142,7 @@ Node *join(Node *L, Node *R)
 
 // sorts passed data in ascending order
 // returns pointer to node array
-Node **sort_ascending(Queue q, int size) {  
+Node **sort_ascending(Queue q, int size) {
   qsort(q.array, size, sizeof(Node *), compare_freq);
   return q.array;
 }
@@ -162,18 +164,19 @@ Node *dequeue(Queue *q) {
 
   // printf("dequeued: %d:%c\n", min->freq, min->data);
 
-  // re-sort  
+  // re-sort
   qsort(q->array, q->size, sizeof(Node *), compare_freq);
-  
+
   return min;
 }
 
 // function to enqueue to the back of the queue
-void insertQueue(Queue *q, Node* node) { 
+void insertQueue(Queue *q, Node* node) {
   if (isQueueFull(q)) return;
 
   q->array[q->size] = node;
   q->size++;
+
 
   // Re-sort the queue
 
@@ -204,7 +207,7 @@ Node *buildTree(char data[], int freq[], int size) {
       right = dequeue(&parent_array);
       // printf("combining two smallest nodes: %d:%c   %d:%c\n", left->freq, left->data, right->freq, right->data);
 
-      top = newNode('J', left->freq + right->freq);
+      top = newNode('\0', left->freq + right->freq);
 
       top->left = left;
       top->right = right;
@@ -213,7 +216,7 @@ Node *buildTree(char data[], int freq[], int size) {
       qsort(parent_array.array, parent_array.size, sizeof(Node *), compare_freq);
 
       // printf("size of Queue: %d\n\n", parent_array.size);
-      
+
   }
 
   // the final remaining node is the root node and the tree is complete
@@ -226,7 +229,7 @@ void encode(Node *root, int arr[], int top) {
     encode(root->left, arr, top + 1);
   }
 
-  if (root->left) {
+  if (root->right) {
     arr[top] = 1;
     encode(root->right, arr, top + 1);
   }
@@ -244,7 +247,7 @@ void print_inorder(Node *node) {
   if (node == NULL) {
     return;
   }
-  
+
   // Traverse left subtree
   print_inorder(node->left);
 
@@ -257,8 +260,8 @@ void print_inorder(Node *node) {
 
 // work in progress to print the tree in tree format
 void printLevelOrder(Node *root, int size) {
-  if (root == NULL) return;  
-  
+  if (root == NULL) return;
+
   // Queue to store nodes for level order traversal
   Queue q;
   Node **arr = malloc(sizeof(Node*) * size);
@@ -270,21 +273,21 @@ void printLevelOrder(Node *root, int size) {
   q.capacity = size;
   q.array = arr;
 
-  // Enqueue the root node  
-  insertQueue(&q, root);    
+  // Enqueue the root node
+  insertQueue(&q, root);
   printf("\n");
   while (q.size != 0) {
     // Get the current level size
-    int levelSize = q.size;  
+    int levelSize = q.size;
     // Process all nodes at the current level
     for (int i = 0; i < levelSize; ++i) {
       Node *node = dequeue(&q);
-      printf("%d:%c    ", node->freq, node->data);  
-        
+      printf("%d:%c    ", node->freq, node->data);
+
       // Enqueue left child if it exists
       if (node->left != NULL)
         insertQueue(&q, node->left);
-          
+
       // Enqueue right child if it exists
       if (node->right != NULL)
         insertQueue(&q, node->right);
@@ -295,31 +298,43 @@ void printLevelOrder(Node *root, int size) {
 }
 
 int main(int argc, char *argv[]){
-  // if(argc != 4){
-  //   fprintf(stderr, "Usage: %s compress|decompress inputfile outputfile\n", argv[0]);
-  //   exit(1);
-  // }
-  // if(strcmp(argv[1], "-c") == 0){
-  //   compress(argv[2], argv[3]);
-  // }
-  // else if(strcmp(argv[1], "-d") == 0){
-  //   decompress(argv[2], argv[3]);
-  // }
-  // else{
-  //   fprintf(stderr, "Invalid command. Use 'compress' or 'decompress'.\n");
-  //   return exit(1);
-  // }
+  if (argc != 4) {
+    printf("Usage: %s <input file> <encoded file> <decoded file>\n", argv[0]);
+    return 1;
+  }
 
-  char data[] = {'A', 'C', 'N', 'O', 'R', 'S', 'T', ' '};
-  int freq[] = {5, 1, 1, 1, 2, 1, 2, 5};
+  int freq[256] = {0};
+  FILE* input = fopen(argv[1], "r");
+  if (!input) {
+    printf("Error opening input file\n");
+    return 1;
+  }
+  // Read entire input file
+  char ch;
+  while ((ch = fgetc(input)) != EOF){
+    freq[(unsigned char)ch]++;
+  }
+
+  fclose(input);
+
+  // Extracts data and stores their corresponding frequency
+  char data[256];
+  int freqArray[256], size = 0;
+  for (int i = 0; i < 256; i++) {
+    if (freq[i] > 0) {
+      data[size] = (char)i;
+      freqArray[size] = freq[i];
+      size++;
+    }
+  }
 
   Tree *tree = createTree(sizeof(data)/sizeof(data[0]));
-  tree->root = buildTree(data, freq, 8);
+  printf("%d\n",size);
+  tree->root = buildTree(data, freqArray, size);
   print_inorder(tree->root);
   printf("\n\n");
-  printf("               %d:%c\n", tree->root->freq, tree->root->data);
-  print_tree(tree->root, 1);
-  
+  printf("%d:%c\n", tree->root->freq, tree->root->data);
+
   int arr[100], top = 0;
   encode(tree->root, arr, top);
 
