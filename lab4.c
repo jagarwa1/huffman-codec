@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 typedef struct Node {
   char data;
@@ -23,8 +24,8 @@ typedef struct Queue {
 
 
 /*                         *
- * simple helper functions *
- *                         */
+* simple helper functions *
+*                         */
 
 // is the queue full
 int isQueueFull(Queue *q) {
@@ -67,15 +68,15 @@ int compare_freq(const void *a, const void *b) {
 
   // first sort by freq
   if (nodeA->freq > nodeB->freq)
-      return 1; // higher frequency comes after lower frequency
+  return 1; // higher frequency comes after lower frequency
   else if (nodeA->freq < nodeB->freq)
-      return -1; // lower frequency comes before higher frequency
+  return -1; // lower frequency comes before higher frequency
 
   // sort by data alphabetically
   if (nodeA->data > nodeB->data)
-    return 1;
+  return 1;
   else if (nodeA->data < nodeB->data)
-    return -1;
+  return -1;
 
   return 0; // equal nodes
 }
@@ -105,18 +106,18 @@ void fix_size(Tree *T)
 {
   T->size = 1;
   if (T->root->left)
-    T->size++;
+  T->size++;
   if (T->root->right)
-    T->size++;
+  T->size++;
 }
 
 // insert key k into tree T, returning a pointer to the resulting root
 Node *insert(Node *T, char data, unsigned int freq) {
   if (T == NULL) return newNode(data, freq);
   if (freq < T->freq)
-    T->left = insert(T->left, data, freq);
+  T->left = insert(T->left, data, freq);
   else
-    T->right = insert(T->right, data, freq);
+  T->right = insert(T->right, data, freq);
   return T;
 }
 
@@ -128,15 +129,15 @@ Node *join(Node *L, Node *R)
   // |L|/(|L|+|R|) & |R|/(|L|+|R|)
   //Implement Node *join(Node *L, Node *R)
   if (L == NULL)
-    return R;
+  return R;
   if (R == NULL)
-    return L;
+  return L;
   Node *newRoot;
   // right root becomes root
-    if (R->left == NULL)
-      R->left = L;
-    else R->left = join(L, R->left);
-    newRoot = R;
+  if (R->left == NULL)
+  R->left = L;
+  else R->left = join(L, R->left);
+  newRoot = R;
   return newRoot;
 }
 
@@ -202,20 +203,20 @@ Node *buildTree(char data[], int freq[], int size) {
   // Iterate while size of queue doesn't become 1
   while (parent_array.size != 1) {
 
-      // Step 2: Extract the two minimum freq items from the queue
-      left = dequeue(&parent_array);
-      right = dequeue(&parent_array);
-      // printf("combining two smallest nodes: %d:%c   %d:%c\n", left->freq, left->data, right->freq, right->data);
+    // Step 2: Extract the two minimum freq items from the queue
+    left = dequeue(&parent_array);
+    right = dequeue(&parent_array);
+    // printf("combining two smallest nodes: %d:%c   %d:%c\n", left->freq, left->data, right->freq, right->data);
 
-      top = newNode('\0', left->freq + right->freq);
+    top = newNode('\0', left->freq + right->freq);
 
-      top->left = left;
-      top->right = right;
+    top->left = left;
+    top->right = right;
 
-      insertQueue(&parent_array, top);
-      qsort(parent_array.array, parent_array.size, sizeof(Node *), compare_freq);
+    insertQueue(&parent_array, top);
+    qsort(parent_array.array, parent_array.size, sizeof(Node *), compare_freq);
 
-      // printf("size of Queue: %d\n\n", parent_array.size);
+    // printf("size of Queue: %d\n\n", parent_array.size);
 
   }
 
@@ -223,23 +224,69 @@ Node *buildTree(char data[], int freq[], int size) {
   return dequeue(&parent_array);
 }
 
-void encode(Node *root, int arr[], int top) {
+// function to encode the tree into array codes
+void encode(Node *root, char arr[], int top, char codes[256][100]) {
   if (root->left) {
-    arr[top] = 0;
-    encode(root->left, arr, top + 1);
+    arr[top] = '0';
+    encode(root->left, arr, top + 1, codes);
   }
 
   if (root->right) {
-    arr[top] = 1;
-    encode(root->right, arr, top + 1);
+    arr[top] = '1';
+    encode(root->right, arr, top + 1, codes);
   }
 
   // if node is a leaf node then print enpty the buffered code into the file
   if (isLeafNode(root)) {
-    printf("%c: ", root->data);
-    for(int i = 0; i < top; i++) printf("%d", arr[i]);
-    printf("\n");
+    arr[top] = '\0';
+    strcpy(codes[(unsigned char)root->data], arr);
   }
+}
+
+// function to take the codes and insert them into an output file
+void compress(const char *inputFile, const char *outputFile, char codes[256][100]){
+  FILE* input = fopen(inputFile, "r");
+  FILE* output = fopen(outputFile, "wb");
+  unsigned char buffer = 0;
+  int bitCount = 0;
+  char ch;
+  while ((ch = fgetc(input)) != EOF) {
+    char* code = codes[(unsigned char)ch];
+    for (int i = 0; code[i] != '\0'; i++) {
+      buffer = (buffer << 1) | (code[i] - '0');
+      bitCount++;
+      if (bitCount == 8) {
+        fwrite(&buffer, 1, 1, output);
+        buffer = 0;
+        bitCount = 0;
+      }
+    }
+  }
+  if (bitCount > 0) {
+    buffer <<= (8 - bitCount);
+    fwrite(&buffer, 1, 1, output);
+  }
+  fclose(input);
+  fclose(output);
+}
+
+// function to take the tree
+void decompress(struct Node* root, const char* encodedFile, const char* decodedFile) {
+  FILE* input = fopen(encodedFile, "rb");
+  FILE* output = fopen(decodedFile, "w");
+  struct Node* curr = root;
+  unsigned char buffer;
+  while (fread(&buffer, 1, 1, input)) {
+    for (int i = 7; i >= 0; i--) {
+      curr = ((buffer >> i) & 1) ? curr->right : curr->left;
+      if (!curr->left && !curr->right) {
+        fputc(curr->data, output);
+        curr = root;
+      }
+    }
+  }
+  fclose(input);
+  fclose(output);
 }
 
 // function to perform inorder traversal and print
@@ -286,11 +333,11 @@ void printLevelOrder(Node *root, int size) {
 
       // Enqueue left child if it exists
       if (node->left != NULL)
-        insertQueue(&q, node->left);
+      insertQueue(&q, node->left);
 
       // Enqueue right child if it exists
       if (node->right != NULL)
-        insertQueue(&q, node->right);
+      insertQueue(&q, node->right);
     }
     // Print new line after each level is processed
     printf("\n");
@@ -335,8 +382,11 @@ int main(int argc, char *argv[]){
   printf("\n\n");
   printf("%d:%c\n", tree->root->freq, tree->root->data);
 
-  int arr[100], top = 0;
-  encode(tree->root, arr, top);
+  char arr[100], top = 0;
+  char codes[256][100] = {0};
+  encode(tree->root, arr, top, codes);
+  compress(argv[1], argv[2], codes);
+  decompress(tree->root, argv[2], argv[3]);
 
   return 0;
 }
